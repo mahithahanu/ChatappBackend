@@ -1,5 +1,9 @@
 const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
+mongoose.set("strictQuery", true); 
+const AudioCall = require("./models/audioCall");
+const VideoCall = require("./models/videoCall");
+
+
 const dotenv = require("dotenv");
 dotenv.config({ path: "./config.env" });
 
@@ -19,8 +23,8 @@ const { promisify } = require("util");
 const User = require("./models/user");
 const FriendRequest = require("./models/friendRequest");
 const OneToOneMessage = require("./models/OneToOneMessage");
-const AudioCall = require("./models/audioCall");
-const VideoCall = require("./models/videoCall");
+// const AudioCall = require("./models/audioCall");
+// const VideoCall = require("./models/videoCall");
 
 // Add this
 // Create an io server and allow for CORS from http://localhost:3000 with GET and POST methods
@@ -31,13 +35,13 @@ const io = new Server(server, {
   },
 });
 
-const DB = process.env.DATABASE.replace(
-  "<PASSWORD>",
-  process.env.DATABASE_PASSWORD
-);
+// const DB = process.env.DATABASE.replace(
+//   "<PASSWORD>",
+//   process.env.DATABASE_PASSWORD
+// );
 
 mongoose
-  .connect(DB, {
+  .connect(process.env.DBURI, {
     // useNewUrlParser: true, // The underlying MongoDB driver has deprecated their current connection string parser. Because this is a major change, they added the useNewUrlParser flag to allow users to fall back to the old parser if they find a bug in the new parser.
     // useCreateIndex: true, // Again previously MongoDB used an ensureIndex function call to ensure that Indexes exist and, if they didn't, to create one. This too was deprecated in favour of createIndex . the useCreateIndex option ensures that you are using the new function calls.
     // useFindAndModify: false, // findAndModify is deprecated. Use findOneAndUpdate, findOneAndReplace or findOneAndDelete instead.
@@ -47,29 +51,31 @@ mongoose
     console.log("DB Connection successful");
   });
 
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 3001;
 
-server.listen(port, () => {
+server.listen(3001, () => {
   console.log(`App running on port ${port} ...`);
 });
 
 // Add this
 // Listen for when the client connects via socket.io-client
 io.on("connection", async (socket) => {
-  console.log(JSON.stringify(socket.handshake.query));
+  // console.log(JSON.stringify(socket.handshake.query));
   const user_id = socket.handshake.query["user_id"];
 
   console.log(`User connected ${socket.id}`);
 
-  if (user_id != null && Boolean(user_id)) {
-    try {
-      User.findByIdAndUpdate(user_id, {
-        socket_id: socket.id,
-        status: "Online",
-      });
-    } catch (e) {
-      console.log(e);
-    }
+  if (Boolean(user_id)) {
+    // try {
+    //   User.findByIdAndUpdate(user_id, {
+    //     socket_id: socket.id,
+    //     status: "Online",
+    //   });
+    // } catch (e) {
+    //   console.log(e);
+    // }
+    await User.findByIdAndUpdate(user_id, {
+      socket_id: socket.id});
   }
 
   // We can write our socket event listeners in here...
@@ -121,17 +127,44 @@ io.on("connection", async (socket) => {
     });
   });
 
-  socket.on("get_direct_conversations", async ({ user_id }, callback) => {
-    const existing_conversations = await OneToOneMessage.find({
-      participants: { $all: [user_id] },
-    }).populate("participants", "firstName lastName avatar _id email status");
+ socket.on("get_direct_conversations", async ({ user_id }, callback) => {
+  try {
+    // 1. Get the user and populate their friends
+    const user = await User.findById(user_id).populate(
+      "friends",
+      "firstName lastName avatar _id email status"
+    );
 
-    // db.books.find({ authors: { $elemMatch: { name: "John Smith" } } })
+    if (!user) return callback([]);
 
-    console.log(existing_conversations);
+    const results = [];
 
-    callback(existing_conversations);
-  });
+    // 2. For each friend, try to find or create a chat
+    for (const friend of user.friends) {
+      let convo = await OneToOneMessage.findOne({
+        participants: { $all: [user_id, friend._id], $size: 2 },
+      }).populate("participants", "firstName lastName avatar _id email status");
+
+      if (!convo) {
+        // If no chat exists yet, create a mock conversation object
+        convo = {
+          _id: `${user_id}_${friend._id}`, // temporary ID (frontend will ignore it)
+          participants: [user, friend],
+          messages: [],
+          isMock: true, // useful flag for frontend if needed
+        };
+      }
+
+      results.push(convo);
+    }
+
+    callback(results);
+  } catch (err) {
+    console.error("Error in get_direct_conversations:", err);
+    callback([]);
+  }
+});
+
 
   socket.on("start_conversation", async (data) => {
     // data: {to: from:}
@@ -244,7 +277,7 @@ io.on("connection", async (socket) => {
     // emit outgoing_message -> from user
   });
 
-  // -------------- HANDLE AUDIO CALL SOCKET EVENTS ----------------- //
+  // // -------------- HANDLE AUDIO CALL SOCKET EVENTS ----------------- //
 
   // handle start_audio_call event
   socket.on("start_audio_call", async (data) => {
@@ -273,12 +306,12 @@ io.on("connection", async (socket) => {
 
     const to_user = await User.findById(to);
 
-    await AudioCall.findOneAndUpdate(
-      {
-        participants: { $size: 2, $all: [to, from] },
-      },
-      { verdict: "Missed", status: "Ended", endedAt: Date.now() }
-    );
+    // await AudioCall.findOneAndUpdate(
+    //   {
+    //     participants: { $size: 2, $all: [to, from] },
+    //   },
+    //   { verdict: "Missed", status: "Ended", endedAt: Date.now() }
+    // );
 
     // TODO => emit call_missed to receiver of call
     io.to(to_user?.socket_id).emit("audio_call_missed", {
@@ -348,7 +381,7 @@ io.on("connection", async (socket) => {
     });
   });
 
-  // --------------------- HANDLE VIDEO CALL SOCKET EVENTS ---------------------- //
+  // // --------------------- HANDLE VIDEO CALL SOCKET EVENTS ---------------------- //
 
   // handle start_video_call event
   socket.on("start_video_call", async (data) => {
@@ -379,12 +412,12 @@ io.on("connection", async (socket) => {
 
     const to_user = await User.findById(to);
 
-    await VideoCall.findOneAndUpdate(
-      {
-        participants: { $size: 2, $all: [to, from] },
-      },
-      { verdict: "Missed", status: "Ended", endedAt: Date.now() }
-    );
+    // await VideoCall.findOneAndUpdate(
+    //   {
+    //     participants: { $size: 2, $all: [to, from] },
+    //   },
+    //   { verdict: "Missed", status: "Ended", endedAt: Date.now() }
+    // );
 
     // TODO => emit call_missed to receiver of call
     io.to(to_user?.socket_id).emit("video_call_missed", {
@@ -451,7 +484,7 @@ io.on("connection", async (socket) => {
     io.to(from_user?.socket_id).emit("on_another_video_call", {
       from,
       to,
-    });
+    });ode 
   });
 
   // -------------- HANDLE SOCKET DISCONNECTION ----------------- //

@@ -30,8 +30,7 @@ exports.register = catchAsync(async (req, res, next) => {
     "password"
   );
 
-  // check if a verified user with given email exists
-
+  // Check if a verified user with given email exists
   const existing_user = await User.findOne({ email: email });
 
   if (existing_user && existing_user.verified) {
@@ -41,18 +40,16 @@ exports.register = catchAsync(async (req, res, next) => {
       message: "Email already in use, Please login.",
     });
   } else if (existing_user) {
-    // if not verified than update prev one
-
-    await User.findOneAndUpdate({ email: email }, filteredBody, {
-      new: true,
-      validateModifiedOnly: true,
-    });
+    // if not verified, then update previous one using .save() to trigger pre-save hooks
+    const userToUpdate = await User.findOne({ email });
+    Object.assign(userToUpdate, filteredBody);
+    await userToUpdate.save();
 
     // generate an otp and send to email
-    req.userId = existing_user._id;
+    req.userId = userToUpdate._id;
     next();
   } else {
-    // if user is not created before than create a new one
+    // if user is not created before, then create a new one
     const new_user = await User.create(filteredBody);
 
     // generate an otp and send to email
@@ -60,6 +57,7 @@ exports.register = catchAsync(async (req, res, next) => {
     next();
   }
 });
+
 
 exports.sendOTP = catchAsync(async (req, res, next) => {
   const { userId } = req;
@@ -158,24 +156,24 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   const user = await User.findOne({ email: email }).select("+password");
+ console.log("User found:", user);
 
-  if (!user || !user.password) {
-    res.status(400).json({
-      status: "error",
-      message: "Incorrect password",
-    });
+ if (!user || !user.password) {
+  console.log("User not found or password missing");
+  return res.status(400).json({
+    status: "error",
+    message: "Incorrect password",
+  });
+}
 
-    return;
-  }
+if (!(await user.correctPassword(password, user.password))) {
+  console.log("Password comparison failed");
+  return res.status(400).json({
+    status: "error",
+    message: "Email or password is incorrect",
+  });
+}
 
-  if (!user || !(await user.correctPassword(password, user.password))) {
-    res.status(400).json({
-      status: "error",
-      message: "Email or password is incorrect",
-    });
-
-    return;
-  }
 
   const token = signToken(user._id);
 
@@ -252,7 +250,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     console.log(resetURL);
 
     mailService.sendEmail({
-      from: "shreyanshshah242@gmail.com",
+      from: "22A91A05B2@aec.edu.in",
       to: user.email,
       subject: "Reset Password",
       html: resetPassword(user.firstName, resetURL),

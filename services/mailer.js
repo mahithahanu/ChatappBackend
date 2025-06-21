@@ -1,6 +1,6 @@
 const sgMail = require("@sendgrid/mail");
 
-sgMail.setApiKey(process.env.SG_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const sendSGMail = async ({
   to,
@@ -11,26 +11,25 @@ const sendSGMail = async ({
   text,
 }) => {
   try {
-    const from = "shreyanshshah242@gmail.com";
+    const from = "22A91A05B2@aec.edu.in"; // Use your verified sender
 
     const msg = {
-      to: to, // Change to your recipient
-      from: from, // Change to your verified sender
+      to: to,          // ✅ Corrected
+      from: from,
       subject: subject,
       html: html,
-      // text: text,
-      attachments,
+      attachments: attachments || [],
     };
 
-    
     return sgMail.send(msg);
   } catch (error) {
-    console.log(error);
+    console.error("SendGrid error:", error.response?.body || error.message);
   }
 };
 
 exports.sendEmail = async (args) => {
-  if (!process.env.NODE_ENV === "development") {
+  // In development mode, don't send real email
+  if (process.env.NODE_ENV === "development") {
     return Promise.resolve();
   } else {
     return sendSGMail(args);
