@@ -8,5 +8,7 @@ router.use("/user", userRoute);
 router.use("/chat", require("./chat"));
 router.use("/discussion",require('./Discussion'));
 router.use("/interview",require('./Interview'));
+router.use('/clubs',require('./clubRoutes'));
+router.use('/communities',require('./cummunityRoutes'));
 
 module.exports = router;

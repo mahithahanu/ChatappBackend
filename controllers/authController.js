@@ -137,13 +137,14 @@ exports.verifyOTP = catchAsync(async (req, res, next) => {
     status: "success",
     message: "OTP verified Successfully!",
     token,
-    user_id: user._id,
+    user_id: user._id
   });
 });
 
 // User Login
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
+  console.log(email);
 
   // console.log(email, password);
 
@@ -182,6 +183,7 @@ if (!(await user.correctPassword(password, user.password))) {
     message: "Logged in successfully!",
     token,
     user_id: user._id,
+     email:email
   });
 });
 
