@@ -3,7 +3,6 @@ const User = require("./models/user");
 const FriendRequest = require("./models/friendRequest");
 const OneToOneMessage = require("./models/OneToOneMessage");
 const AudioCall = require("./models/audioCall");
-const VideoCall = require("./models/videoCall");
 
 let io;
 
@@ -44,14 +43,19 @@ function initSocket(server) {
 
     socket.on("accept_request", async (data) => {
       const request_doc = await FriendRequest.findById(data.request_id);
-      const sender = await User.findById(request_doc.sender);
-      const receiver = await User.findById(request_doc.recipient);
+      if (!request_doc) return;
 
-      sender.friends.push(request_doc.recipient);
-      receiver.friends.push(request_doc.sender);
+      const sender = await User.findById(request_doc.sender).select("socket_id");
+      const receiver = await User.findById(request_doc.recipient).select("socket_id");
 
-      await receiver.save({ new: true, validateModifiedOnly: true });
-      await sender.save({ new: true, validateModifiedOnly: true });
+      await User.findByIdAndUpdate(request_doc.sender, {
+        $addToSet: { friends: request_doc.recipient },
+      });
+
+      await User.findByIdAndUpdate(request_doc.recipient, {
+        $addToSet: { friends: request_doc.sender },
+      });
+
       await FriendRequest.findByIdAndDelete(data.request_id);
 
       io.to(sender?.socket_id).emit("request_accepted", { message: "Friend Request Accepted" });
@@ -130,7 +134,6 @@ function initSocket(server) {
       io.to(from_user?.socket_id).emit("new_message", { conversation_id, message: new_message });
     });
 
-    // Audio Call Events
     socket.on("start_audio_call", async (data) => {
       const { from, to, roomID } = data;
       await logUserSocketIDs(from, to, "Audio Call");
@@ -173,48 +176,6 @@ function initSocket(server) {
       io.to(from_user?.socket_id).emit("on_another_audio_call", { from, to });
     });
 
-    // Video Call Events
-    socket.on("start_video_call", async (data) => {
-      const { from, to, roomID } = data;
-      await logUserSocketIDs(from, to, "Video Call");
-
-      const to_user = await User.findById(to);
-      const from_user = await User.findById(from);
-      io.to(to_user?.socket_id).emit("video_call_notification", {
-        from: from_user,
-        roomID,
-        streamID: from,
-        userID: to,
-        userName: to,
-      });
-    });
-
-    socket.on("video_call_not_picked", async (data) => {
-      const { to } = data;
-      const to_user = await User.findById(to);
-      io.to(to_user?.socket_id).emit("video_call_missed", data);
-    });
-
-    socket.on("video_call_accepted", async (data) => {
-      const { to, from } = data;
-      const from_user = await User.findById(from);
-      await VideoCall.findOneAndUpdate({ participants: { $size: 2, $all: [to, from] } }, { verdict: "Accepted" });
-      io.to(from_user?.socket_id).emit("video_call_accepted", { from, to });
-    });
-
-    socket.on("video_call_denied", async (data) => {
-      const { to, from } = data;
-      await VideoCall.findOneAndUpdate({ participants: { $size: 2, $all: [to, from] } }, { verdict: "Denied", status: "Ended", endedAt: Date.now() });
-      const from_user = await User.findById(from);
-      io.to(from_user?.socket_id).emit("video_call_denied", { from, to });
-    });
-
-    socket.on("user_is_busy_video_call", async (data) => {
-      const { to, from } = data;
-      await VideoCall.findOneAndUpdate({ participants: { $size: 2, $all: [to, from] } }, { verdict: "Busy", status: "Ended", endedAt: Date.now() });
-      const from_user = await User.findById(from);
-      io.to(from_user?.socket_id).emit("on_another_video_call", { from, to });
-    });
 
     socket.on("end", async (data) => {
       if (data.user_id) {
@@ -225,7 +186,7 @@ function initSocket(server) {
     });
   });
 
-  return io; // ✅ Final addition
+  return io;
 }
 
 function getIO() {

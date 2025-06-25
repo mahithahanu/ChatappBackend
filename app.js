@@ -59,7 +59,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(mongosanitize());
 app.use(xss());
 
-// ✅ MOUNT ROUTES CORRECTLY
 app.use("/", routes);
 
 module.exports = app;

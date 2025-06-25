@@ -21,7 +21,7 @@ mongoose.connect(process.env.DBURI).then(() => {
 });
 
 const port = process.env.PORT || 3001;
-server.listen(3001, () => {
+server.listen(3001,'0.0.0.0', () => {
   console.log(`🚀 App running on port ${port}`);
 });
 

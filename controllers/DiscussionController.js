@@ -2,9 +2,14 @@ const Discussion = require("../models/Discussions");
 
 exports.getAllDiscussions = async (req, res) => {
   try {
-    const discussions = await Discussion.find().sort({ time: -1 });
+    const { communityId } = req.query;
+
+    const filter = communityId ? { communityId } : {};
+
+    const discussions = await Discussion.find(filter).sort({ time: -1 });
     res.json(discussions);
   } catch (error) {
+    console.error("Error in getAllDiscussions:", error);
     res.status(500).json({ error: "Failed to fetch discussions" });
   }
 };

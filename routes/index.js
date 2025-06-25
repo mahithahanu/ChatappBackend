@@ -12,4 +12,5 @@ router.use('/clubs',require('./clubRoutes'));
 router.use('/communities',require('./cummunityRoutes'));
 router.use('/clubschat',require('./clubChat'));
 
+
 module.exports = router;

@@ -15,6 +15,7 @@ function generateRandomPassword() {
   return crypto.randomBytes(4).toString("hex");
 }
 
+// ========================== REGISTER ==========================
 exports.register = catchAsync(async (req, res, next) => {
   const filteredBody = filterObj(req.body, "firstName", "lastName", "email", "password");
   const existing_user = await User.findOne({ email: req.body.email });
@@ -33,6 +34,7 @@ exports.register = catchAsync(async (req, res, next) => {
   }
 });
 
+// ========================== SEND OTP ==========================
 exports.sendOTP = catchAsync(async (req, res, next) => {
   const { userId } = req;
   const new_otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false });
@@ -53,6 +55,7 @@ exports.sendOTP = catchAsync(async (req, res, next) => {
   res.status(200).json({ status: "success", message: "OTP Sent Successfully!" });
 });
 
+// ========================== VERIFY OTP ==========================
 exports.verifyOTP = catchAsync(async (req, res, next) => {
   const { email, otp } = req.body;
   const user = await User.findOne({ email, otp_expiry_time: { $gt: Date.now() } });
@@ -69,6 +72,7 @@ exports.verifyOTP = catchAsync(async (req, res, next) => {
   res.status(200).json({ status: "success", message: "OTP verified Successfully!", token, user_id: user._id });
 });
 
+// ========================== LOGIN ==========================
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ status: "error", message: "Both email and password are required" });
@@ -81,6 +85,7 @@ exports.login = catchAsync(async (req, res, next) => {
   res.status(200).json({ status: "success", message: "Logged in successfully!", token, user_id: user._id, email });
 });
 
+// ========================== PROTECT MIDDLEWARE ==========================
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
@@ -93,41 +98,64 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   const this_user = await User.findById(decoded.userId);
-  if (!this_user) return res.status(401).json({ message: "The user belonging to this token does no longer exists." });
+  if (!this_user) return res.status(401).json({ message: "The user belonging to this token does no longer exist." });
   if (this_user.changedPasswordAfter(decoded.iat)) return res.status(401).json({ message: "User recently changed password! Please log in again." });
 
   req.user = this_user;
   next();
 });
 
+// ========================== FORGOT PASSWORD ==========================
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
-  if (!user) return res.status(404).json({ status: "error", message: "There is no user with that email address." });
+  if (!user) return res.status(404).json({ status: "error", message: "No user found with this email." });
 
-  const newPassword = generateRandomPassword();
-  user.password = newPassword;
-  user.passwordConfirm = newPassword;
-  await user.save();
+  // Generate raw token
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  // Hash and store token
+  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  user.passwordResetToken = hashedToken;
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  await user.save({ validateBeforeSave: false });
+
+  // Send raw token in email
+  const resetURL = `http://localhost:3000/login/new-password?token=${resetToken}`;
 
   try {
     await mailService.sendEmail({
       from: "22A91A05B2@aec.edu.in",
       to: user.email,
-      subject: "Your New Login Password",
-      html: `<p>Hi ${user.firstName},</p><p>Your new login password is: <strong>${newPassword}</strong></p><p>Please log in using this password and change it immediately from your profile settings.</p>`,
+      subject: "Reset Your Password",
+      html: `
+        <p>Hi ${user.firstName},</p>
+        <p>You requested a password reset.</p>
+        <p>Click the link below to set a new password. This link will expire in 10 minutes.</p>
+        <p><a href="${resetURL}">${resetURL}</a></p>
+        <p>If you didn’t request this, just ignore this email.</p>
+      `,
     });
 
-    res.status(200).json({ status: "success", message: "A new password has been sent to your email." });
+    res.status(200).json({ status: "success", message: "Password reset link sent to email!" });
   } catch (err) {
     console.error("Email sending failed:", err);
-    res.status(500).json({ status: "error", message: "Failed to send the email. Try again later." });
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(500).json({ status: "error", message: "Failed to send email. Try again later." });
   }
 });
 
+// ========================== RESET PASSWORD ==========================
 exports.resetPassword = catchAsync(async (req, res, next) => {
   const hashedToken = crypto.createHash("sha256").update(req.body.token).digest("hex");
 
-  const user = await User.findOne({ passwordResetToken: hashedToken, passwordResetExpires: { $gt: Date.now() } });
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
   if (!user) return res.status(400).json({ status: "error", message: "Token is Invalid or Expired" });
 
   user.password = req.body.password;
@@ -137,5 +165,5 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   await user.save();
 
   const token = signToken(user._id);
-  res.status(200).json({ status: "success", message: "Password Reseted Successfully", token });
+  res.status(200).json({ status: "success", message: "Password Reset Successfully", token });
 });

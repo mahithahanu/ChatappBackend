@@ -1,29 +1,22 @@
 const mongoose = require("mongoose");
 
 const replySchema = new mongoose.Schema({
-  author: String,
-  time: Date,
   message: String,
   avatar: String,
+  time: { type: Date, default: Date.now },
 });
 
-const DiscussionSchema = new mongoose.Schema({
+const discussionSchema = new mongoose.Schema({
   content: String,
   avatar: String,
   author: String,
   time: { type: Date, default: Date.now },
-  // category: {
-  //   type: String,
-  //   required: true,
-  //   // enum: ["fsd", "flutter", "coding", "aws"],
-  // },
-  replies: [
-    {
-      message: String,
-      avatar: String,
-      time: { type: Date, default: Date.now },
-    },
-  ],
+  communityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Community",
+    required: true
+  },
+  replies: [replySchema]
 });
 
-module.exports = mongoose.model("Discussion", DiscussionSchema);
+module.exports = mongoose.model("Discussion", discussionSchema);
