@@ -1,4 +1,3 @@
-// socket.js
 const { Server } = require("socket.io");
 const User = require("./models/user");
 const FriendRequest = require("./models/friendRequest");
@@ -18,7 +17,7 @@ const logUserSocketIDs = async (user1Id, user2Id, context = "") => {
 function initSocket(server) {
   io = new Server(server, {
     cors: {
-      origin: "http://localhost:3000", // Your frontend
+      origin: "http://localhost:3000",
       methods: ["GET", "POST"],
     },
   });
@@ -127,13 +126,9 @@ function initSocket(server) {
         text: message,
       };
 
-      // ✅ No saving to DB here — that's handled by the REST API
-
-      // 🔔 Just emit to both sender and receiver
       io.to(to_user?.socket_id).emit("new_message", { conversation_id, message: new_message });
       io.to(from_user?.socket_id).emit("new_message", { conversation_id, message: new_message });
     });
-
 
     // Audio Call Events
     socket.on("start_audio_call", async (data) => {
@@ -229,6 +224,8 @@ function initSocket(server) {
       socket.disconnect(0);
     });
   });
+
+  return io; // ✅ Final addition
 }
 
 function getIO() {

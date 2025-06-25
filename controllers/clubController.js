@@ -81,3 +81,13 @@ exports.registerUserToClub = async (req, res) => {
     res.status(500).json({ error: 'Registration failed' });
   }
 };
+
+exports.getClubsByUserEmail = async (req, res) => {
+  const email = req.query.email;
+  try {
+    const clubs = await Club.find({ registeredUsers: email });
+    res.json(clubs);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch clubs' });
+  }
+};

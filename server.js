@@ -8,8 +8,13 @@ const mongoose = require("mongoose");
 mongoose.set("strictQuery", true);
 
 const server = http.createServer(app);
-const { initSocket } = require("./socket"); // 👈 Import socket logic
-initSocket(server); // 👈 Start socket.io on this server
+const { initSocket } = require("./socket"); 
+const clubChatSocket = require("./sockets/chatSocket");
+// initSocket(server); // 👈 Start socket.io on this server
+
+
+const io = initSocket(server); 
+clubChatSocket(io);
 
 mongoose.connect(process.env.DBURI).then(() => {
   console.log("✅ DB Connection successful");

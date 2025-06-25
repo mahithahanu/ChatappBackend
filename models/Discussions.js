@@ -7,13 +7,23 @@ const replySchema = new mongoose.Schema({
   avatar: String,
 });
 
-const discussionSchema = new mongoose.Schema({
-  author: String,
-  userId: String, // or email (used to check ownership)
-  time: Date,
+const DiscussionSchema = new mongoose.Schema({
   content: String,
   avatar: String,
-  replies: [replySchema],
+  author: String,
+  time: { type: Date, default: Date.now },
+  // category: {
+  //   type: String,
+  //   required: true,
+  //   // enum: ["fsd", "flutter", "coding", "aws"],
+  // },
+  replies: [
+    {
+      message: String,
+      avatar: String,
+      time: { type: Date, default: Date.now },
+    },
+  ],
 });
 
-module.exports = mongoose.model("Discussion", discussionSchema);
+module.exports = mongoose.model("Discussion", DiscussionSchema);

@@ -10,5 +10,6 @@ router.use("/discussion",require('./Discussion'));
 router.use("/interview",require('./Interview'));
 router.use('/clubs',require('./clubRoutes'));
 router.use('/communities',require('./cummunityRoutes'));
+router.use('/clubschat',require('./clubChat'));
 
 module.exports = router;

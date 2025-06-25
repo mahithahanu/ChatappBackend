@@ -18,6 +18,8 @@ const clubController = require('../controllers/clubController');
 router.get('/club', clubController.getAllClubs);
 router.get('/:clubId', clubController.getClubById);
 router.post('/register', clubController.registerUserToClub);
-router.post('/:clubId/register-details', clubController.registerUserWithDetails); // ✅ NO ()
+router.post('/:clubId/register-details', clubController.registerUserWithDetails); 
+
+router.get('/by-user/email', clubController.getClubsByUserEmail);
 
 module.exports = router;

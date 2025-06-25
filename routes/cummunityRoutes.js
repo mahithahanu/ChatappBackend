@@ -27,4 +27,16 @@ router.post('/join', async (req, res) => {
   }
 });
 
+// Get communities joined by a member
+router.get('/joined', async (req, res) => {
+  const { email } = req.query;
+  try {
+    const joinedCommunities = await Community.find({ members: email });
+    res.json(joinedCommunities);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch joined communities' });
+  }
+});
+
+
 module.exports = router;
