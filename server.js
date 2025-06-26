@@ -10,10 +10,12 @@ mongoose.set("strictQuery", true);
 const server = http.createServer(app);
 const { initSocket } = require("./socket"); 
 const clubChatSocket = require("./sockets/chatSocket");
-// initSocket(server); // 👈 Start socket.io on this server
 
 
 const io = initSocket(server); 
+const { setSocketIO } = require("./controllers/clubMessageController");
+setSocketIO(io); 
+
 clubChatSocket(io);
 
 mongoose.connect(process.env.DBURI).then(() => {

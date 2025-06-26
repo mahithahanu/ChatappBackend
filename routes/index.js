@@ -11,6 +11,7 @@ router.use("/interview",require('./Interview'));
 router.use('/clubs',require('./clubRoutes'));
 router.use('/communities',require('./cummunityRoutes'));
 router.use('/clubschat',require('./clubChat'));
+router.use('/send',require('./clubMessageRoute'));
 
 
 module.exports = router;
