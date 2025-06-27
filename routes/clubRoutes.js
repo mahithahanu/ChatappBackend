@@ -22,4 +22,7 @@ router.post('/:clubId/register-details', clubController.registerUserWithDetails)
 
 router.get('/by-user/email', clubController.getClubsByUserEmail);
 
+router.post('/newclub', clubController.addNewClub);
+router.put('/:clubId', clubController.updateClubEvents);
+
 module.exports = router;

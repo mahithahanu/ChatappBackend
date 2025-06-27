@@ -91,3 +91,30 @@ exports.getClubsByUserEmail = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch clubs' });
   }
 };
+
+
+exports.addNewClub = async (req, res) => {
+  try {
+    const newClub = new Club(req.body);
+    await newClub.save();
+    res.status(201).json(newClub);
+  } catch (err) {
+    console.error('Error adding club:', err);
+    res.status(500).json({ error: 'Failed to add club' });
+  }
+};
+
+// ✅ Update club (e.g., add event)
+exports.updateClubEvents = async (req, res) => {
+  try {
+    const updatedClub = await Club.findByIdAndUpdate(
+      req.params.clubId,
+      { $set: req.body },
+      { new: true }
+    );
+    res.json(updatedClub);
+  } catch (err) {
+    console.error('Error updating club:', err);
+    res.status(500).json({ error: 'Failed to update club' });
+  }
+};

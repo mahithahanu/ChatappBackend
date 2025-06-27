@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-     select: false, 
+    select: false,
   },
   passwordChangedAt: Date,
   passwordResetToken: String,
@@ -56,18 +56,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["Online", "Offline"],
   },
+
+  // ✅ Add this field
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 // ✅ Combined pre-save hook
 userSchema.pre("save", async function (next) {
-  // Hash password if modified
   if (this.isModified("password") && this.password) {
     this.password = await bcrypt.hash(this.password, 12);
     console.log("Password hashed:", this.password);
     this.passwordChangedAt = Date.now() - 1000;
   }
 
-  // Hash OTP if modified
   if (this.isModified("otp") && this.otp) {
     this.otp = await bcrypt.hash(this.otp.toString(), 12);
     console.log(this.otp.toString(), "FROM PRE SAVE HOOK");
@@ -76,7 +80,6 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-// Method to compare password
 userSchema.methods.correctPassword = async function (
   candidatePassword,
   userPassword
@@ -84,12 +87,10 @@ userSchema.methods.correctPassword = async function (
   return await bcrypt.compare(candidatePassword, userPassword);
 };
 
-// Method to compare OTP
 userSchema.methods.correctOTP = async function (candidateOTP, userOTP) {
   return await bcrypt.compare(candidateOTP, userOTP);
 };
 
-// Check if password was changed after JWT was issued
 userSchema.methods.changedPasswordAfter = function (JWTTimeStamp) {
   if (this.passwordChangedAt) {
     const changedTimeStamp = parseInt(
@@ -101,7 +102,6 @@ userSchema.methods.changedPasswordAfter = function (JWTTimeStamp) {
   return false;
 };
 
-// Method to create a password reset token
 userSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
 

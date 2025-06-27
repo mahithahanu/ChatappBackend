@@ -82,7 +82,7 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!(await user.correctPassword(password, user.password))) return res.status(400).json({ status: "error", message: "Email or password is incorrect" });
 
   const token = signToken(user._id);
-  res.status(200).json({ status: "success", message: "Logged in successfully!", token, user_id: user._id, email });
+  res.status(200).json({ status: "success", message: "Logged in successfully!", token, user_id: user._id, email:user.email,   isAdmin: user.isAdmin, });
 });
 
 // ========================== PROTECT MIDDLEWARE ==========================
